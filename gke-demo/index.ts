@@ -52,7 +52,7 @@ const gkeCluster = new gcp.container.Cluster("gke-cluster", {
     privateClusterConfig: {
         enablePrivateNodes: true,
         enablePrivateEndpoint: false,
-        masterIpv4CidrBlock: "10.100.0.0/28",
+        masterIpv4CidrBlock: "10.101.0.0/28",
     },
     removeDefaultNodePool: true,
     releaseChannel: {
@@ -135,3 +135,7 @@ export const networkId = gkeNetwork.id;
 export const clusterName = gkeCluster.name;
 export const clusterId = gkeCluster.id;
 export const kubeconfig = clusterKubeconfig;
+
+export const url = pulumi.all([wd.url]).
+    apply(([hostname, port]) => `http://${hostname}/greeting`);
+

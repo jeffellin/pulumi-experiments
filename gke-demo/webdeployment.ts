@@ -11,18 +11,27 @@ export interface WebDeploymentArgs {
 }
 
 export class WebDeployment extends pulumi.ComponentResource {
+
+
+    public readonly url: pulumi.Output<string>;
+
+
     constructor(name: string, args: WebDeploymentArgs, opts: pulumi.ComponentResourceOptions) {
         super("pkg:index:MyComponent", name, {}, opts);
 
         const namespaceName = args.namespaceName
         const appLabels = args.appLabels
+
+        const cfg = new pulumi.Config();
+        const greeting = cfg.get("greeting") || "not set";
+        
         const service = new Service(name,{
             metadata: {
                 namespace: namespaceName,
                 labels: appLabels,
             }, 
             spec: {
-                ports: [{ port: 8080, targetPort: "http" }], 
+                ports: [{ port: 80, targetPort: "http" }], 
                 type: "LoadBalancer",
                 selector: appLabels
             },
@@ -48,8 +57,9 @@ export class WebDeployment extends pulumi.ComponentResource {
                             containers: [
                                 {
                                     name: name,
-                                    image: "nginx:latest",
-                                    ports: [{ name: "http", containerPort: 80 }]
+                                    image: "docker.io/ellinj/pulumi-demo:0.0.1-SNAPSHOT",
+                                    ports: [{ name: "http", containerPort: 8080 }],
+                                    env: [{name: "GREETING", value: greeting}]
                                 }
                             ],
                         }
@@ -60,5 +70,12 @@ export class WebDeployment extends pulumi.ComponentResource {
                  provider: args.provider,
              }
         );
+        this.url = service.status.loadBalancer.ingress[0].ip
+        
+        this.registerOutputs({
+            bucketDnsName: service.status.loadBalancer.ingress[0].ip,
+        }) 
     }
+    
 }
+
