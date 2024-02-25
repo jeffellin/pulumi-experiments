@@ -21,7 +21,7 @@ const gkeSubnet = new gcp.compute.Subnetwork("gke-subnet", {
     ipCidrRange: "10.128.0.0/12",
     network: gkeNetwork.id,
     privateIpGoogleAccess: true,
-});
+},{dependsOn: gkeNetwork});
 
 // Create a new GKE cluster
 const gkeCluster = new gcp.container.Cluster("gke-cluster", {
@@ -33,6 +33,7 @@ const gkeCluster = new gcp.container.Cluster("gke-cluster", {
     binaryAuthorization: {
         evaluationMode: "PROJECT_SINGLETON_POLICY_ENFORCE",
     },
+    deletionProtection: false,
     datapathProvider: "ADVANCED_DATAPATH",
     description: "A GKE cluster",
     initialNodeCount: 1,
@@ -62,13 +63,13 @@ const gkeCluster = new gcp.container.Cluster("gke-cluster", {
     workloadIdentityConfig: {
         workloadPool: `${gcpProject}.svc.id.goog`,
     },
-});
+},{dependsOn:gkeSubnet});
 
 // Create a service account for the node pool
 const gkeNodepoolSa = new gcp.serviceaccount.Account("gke-nodepool-sa", {
     accountId: pulumi.interpolate `${gkeCluster.name}-np-1-sa`,
     displayName: "Nodepool 1 Service Account",
-});
+},{dependsOn:gkeSubnet});
 
 // Create a nodepool for the GKE cluster
 const gkeNodepool = new gcp.container.NodePool("gke-nodepool", {
@@ -78,7 +79,7 @@ const gkeNodepool = new gcp.container.NodePool("gke-nodepool", {
         oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"],
         serviceAccount: gkeNodepoolSa.email,
     },
-});
+},{dependsOn:gkeNodepoolSa});
 
 // Build a Kubeconfig for accessing the cluster
 const clusterKubeconfig = pulumi.interpolate `apiVersion: v1
@@ -118,7 +119,7 @@ const appLabels = {
 const provider = new k8s.Provider("eks-provider", {kubeconfig: clusterKubeconfig});
 
 
-const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: provider });
+const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: provider, dependsOn: gkeNodepool });
 
 export const namespaceName = ns.metadata.apply(m => m.name);
 
@@ -126,7 +127,7 @@ export const namespaceName = ns.metadata.apply(m => m.name);
      provider: provider,
      appLabels: appLabels,
      namespaceName: namespaceName
- },{})
+ },{dependsOn: ns} )
 
 
 // Export some values for use elsewhere
