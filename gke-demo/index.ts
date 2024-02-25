@@ -106,19 +106,24 @@ users:
       provideClusterInfo: true
 `;
 
-const clusterProvider = new k8s.Provider("new cluster", {
-    kubeconfig: clusterKubeconfig,
-});
+// const clusterProvider = new k8s.Provider("new cluster", {
+//     kubeconfig: clusterKubeconfig,
+// });
 
 const namespace = "demo"
 const appLabels = {
     app: "nginx",
 };
-const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: clusterProvider });
+
+const provider = new k8s.Provider("eks-provider", {kubeconfig: clusterKubeconfig});
+
+
+const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: provider });
 
 export const namespaceName = ns.metadata.apply(m => m.name);
 
  const wd = new WebDeployment("test-deployment",{
+     provider: provider,
      appLabels: appLabels,
      namespaceName: namespaceName
  },{})

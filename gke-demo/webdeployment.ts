@@ -1,7 +1,9 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
+import { Service } from "@pulumi/kubernetes/core/v1/service";
 
 export interface WebDeploymentArgs {
+    provider?: k8s.Provider
     namespaceName?: pulumi.Input<string>;
     appLabels?: pulumi.Input<{
         [key: string]: pulumi.Input<string>;
@@ -14,6 +16,21 @@ export class WebDeployment extends pulumi.ComponentResource {
 
         const namespaceName = args.namespaceName
         const appLabels = args.appLabels
+        const service = new Service(name,{
+            metadata: {
+                namespace: namespaceName,
+                labels: appLabels,
+            }, 
+            spec: {
+                ports: [{ port: 8080, targetPort: "http" }], 
+                type: "LoadBalancer",
+                selector: appLabels
+            },
+
+        },
+        {
+            provider: args.provider,
+        })
         const deployment = new k8s.apps.v1.Deployment(name,
             {
                 metadata: {
@@ -38,10 +55,10 @@ export class WebDeployment extends pulumi.ComponentResource {
                         }
                     }
                 },
-            }//,
-            // {
-            //     provider: clusterProvider,
-            // }
+            },
+             {
+                 provider: args.provider,
+             }
         );
     }
 }
