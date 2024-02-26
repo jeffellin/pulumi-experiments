@@ -3,7 +3,6 @@ import * as k8s from "@pulumi/kubernetes";
 import { Service } from "@pulumi/kubernetes/core/v1/service";
 
 export interface WebDeploymentArgs {
-    provider?: k8s.Provider
     namespaceName?: pulumi.Input<string>;
     appLabels?: pulumi.Input<{
         [key: string]: pulumi.Input<string>;
@@ -13,11 +12,10 @@ export interface WebDeploymentArgs {
 export class WebDeployment extends pulumi.ComponentResource {
 
 
-    public readonly url: pulumi.Output<string>;
-
+    public readonly serviceURL: pulumi.Output<string>;
 
     constructor(name: string, args: WebDeploymentArgs, opts: pulumi.ComponentResourceOptions) {
-        super("pkg:index:MyComponent", name, {}, opts);
+        super("pkg:spring:WebDeployment", name, {}, opts);
 
         const namespaceName = args.namespaceName
         const appLabels = args.appLabels
@@ -38,7 +36,7 @@ export class WebDeployment extends pulumi.ComponentResource {
 
         },
         {
-            provider: args.provider,
+            parent: this
         })
         const deployment = new k8s.apps.v1.Deployment(name,
             {
@@ -67,13 +65,13 @@ export class WebDeployment extends pulumi.ComponentResource {
                 },
             },
              {
-                 provider: args.provider,
-             }
+                parent: this
+            }
         );
-        this.url = service.status.loadBalancer.ingress[0].ip
+        this.serviceURL = service.status.loadBalancer.ingress[0].ip
         
         this.registerOutputs({
-            bucketDnsName: service.status.loadBalancer.ingress[0].ip,
+            serviceURL: service.status.loadBalancer.ingress[0].ip,
         }) 
     }
     

@@ -21,7 +21,7 @@ const gkeSubnet = new gcp.compute.Subnetwork("gke-subnet", {
     ipCidrRange: "10.128.0.0/12",
     network: gkeNetwork.id,
     privateIpGoogleAccess: true,
-},{dependsOn: gkeNetwork});
+},{});
 
 // Create a new GKE cluster
 const gkeCluster = new gcp.container.Cluster("gke-cluster", {
@@ -63,13 +63,13 @@ const gkeCluster = new gcp.container.Cluster("gke-cluster", {
     workloadIdentityConfig: {
         workloadPool: `${gcpProject}.svc.id.goog`,
     },
-},{dependsOn:gkeSubnet});
+},{});
 
 // Create a service account for the node pool
 const gkeNodepoolSa = new gcp.serviceaccount.Account("gke-nodepool-sa", {
     accountId: pulumi.interpolate `${gkeCluster.name}-np-1-sa`,
     displayName: "Nodepool 1 Service Account",
-},{dependsOn:gkeSubnet});
+},{});
 
 // Create a nodepool for the GKE cluster
 const gkeNodepool = new gcp.container.NodePool("gke-nodepool", {
@@ -79,7 +79,7 @@ const gkeNodepool = new gcp.container.NodePool("gke-nodepool", {
         oauthScopes: ["https://www.googleapis.com/auth/cloud-platform"],
         serviceAccount: gkeNodepoolSa.email,
     },
-},{dependsOn:gkeNodepoolSa});
+},{});
 
 // Build a Kubeconfig for accessing the cluster
 const clusterKubeconfig = pulumi.interpolate `apiVersion: v1
@@ -106,17 +106,13 @@ users:
         https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
       provideClusterInfo: true
 `;
-
-// const clusterProvider = new k8s.Provider("new cluster", {
-//     kubeconfig: clusterKubeconfig,
-// });
-
 const namespace = "demo"
+
 const appLabels = {
     app: "nginx",
 };
 
-const provider = new k8s.Provider("eks-provider", {kubeconfig: clusterKubeconfig});
+const provider = new k8s.Provider("gcp-k8s-provider", {kubeconfig: clusterKubeconfig});
 
 
 const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: provider, dependsOn: gkeNodepool });
@@ -124,10 +120,9 @@ const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: provider, depend
 export const namespaceName = ns.metadata.apply(m => m.name);
 
  const wd = new WebDeployment("test-deployment",{
-     provider: provider,
      appLabels: appLabels,
      namespaceName: namespaceName
- },{dependsOn: ns} )
+ },{dependsOn: ns, provider:provider} )
 
 
 // Export some values for use elsewhere
@@ -137,6 +132,6 @@ export const clusterName = gkeCluster.name;
 export const clusterId = gkeCluster.id;
 export const kubeconfig = clusterKubeconfig;
 
-export const url = pulumi.all([wd.url]).
+export const url = pulumi.all([wd.serviceURL]).
     apply(([hostname, port]) => `http://${hostname}/greeting`);
 
