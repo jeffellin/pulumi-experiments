@@ -2,6 +2,7 @@ import * as pulumi from "@pulumi/pulumi";
 import * as gcp from "@pulumi/gcp";
 import * as k8s from "@pulumi/kubernetes";
 import {WebDeployment} from "./webdeployment"
+import {FluxDeployment} from "./fluxdeployment"
 // Get some provider-namespaced configuration values
 const providerCfg = new pulumi.Config("gcp");
 const gcpProject = providerCfg.require("project");
@@ -65,14 +66,25 @@ const gkeCluster = new gcp.container.Cluster("gke-cluster", {
     },
 },{dependsOn:gkeSubnet});
 
+
 // Create a service account for the node pool
 const gkeNodepoolSa = new gcp.serviceaccount.Account("gke-nodepool-sa", {
     accountId: pulumi.interpolate `${gkeCluster.name}-np-1-sa`,
     displayName: "Nodepool 1 Service Account",
 },{dependsOn:gkeSubnet});
 
+const admin = gcp.organizations.getIAMPolicy({
+    bindings: [{
+        members: ["user:"+gkeNodepoolSa.email],
+        role: "roles/iam.serviceAccountUser",
+    }],
+});
+new gcp.serviceaccount.IAMPolicy("iam",
+    {serviceAccountId: gkeNodepoolSa.name,
+    policyData: admin.then(admin => admin.policyData),
+});
 // Create a nodepool for the GKE cluster
-const gkeNodepool = new gcp.container.NodePool("gke-nodepool", {
+let gkeNodepool = new gcp.container.NodePool("gke-nodepool", {
     cluster: gkeCluster.id,
     nodeCount: nodesPerZone,
     nodeConfig: {
@@ -116,7 +128,7 @@ const appLabels = {
     app: "nginx",
 };
 
-const provider = new k8s.Provider("eks-provider", {kubeconfig: clusterKubeconfig});
+const provider = new k8s.Provider("k8s-provider", {kubeconfig: clusterKubeconfig});
 
 
 const ns = new k8s.core.v1.Namespace(namespace, {}, { provider: provider, dependsOn: gkeNodepool });
@@ -128,6 +140,12 @@ export const namespaceName = ns.metadata.apply(m => m.name);
      appLabels: appLabels,
      namespaceName: namespaceName
  },{dependsOn: ns} )
+
+ const fluxDeployment = new FluxDeployment("flux",{provider: clusterKubeconfig},{dependsOn:ns})
+
+ //need to add git secret
+ //need to create a GitResource
+ //need to create a Kustomization Resource
 
 
 // Export some values for use elsewhere
