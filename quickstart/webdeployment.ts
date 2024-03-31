@@ -55,11 +55,11 @@ export class WebDeployment extends pulumi.ComponentResource {
                             containers: [
                                 {
                                     name: name,
-                                    image: "docker.io/ellinj/pulumi-demo:0.0.1-SNAPSHOT",
+                                    image: "docker.io/ellinj/pulumi-demo:0.0.3-SNAPSHOT",
                                     ports: [{ name: "http", containerPort: 8080 }],
-                                    env: [{name: "SPRING_JPA_DBC", value: args.pgHost},
-                                          {name: "SPRING_JPA_USER", value: args.pgHost},
-                                          {name: "SPRING_JPA_PW", value: args.pgHost}]
+                                    env: [{name: "SPRING_DATASOURCE_URL", value: pulumi.interpolate `jdbc:postgresql://${args.pgHost}:5432/demo`,},
+                                          {name: "SPRING_DATASOURCE_USERNAME", value: args.pgUser},
+                                          {name: "SPRING_DATASOURCE_PASSWORD", value: args.pgPassword}]
 
 
                                 

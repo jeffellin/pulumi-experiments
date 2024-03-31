@@ -50,7 +50,8 @@ const ec2Role = new aws.iam.Role("ec2Role", {
 const policyDocument = aws.iam.getPolicyDocumentOutput({
     statements: [{
         actions: [
-            "s3:*"
+            "s3:*",
+            "ec2:*"
         ],
         resources: ["*"],
         effect: "Allow"
@@ -101,9 +102,6 @@ packages:
   - postgresql
   - s3cmd
 write_files:
-  - owner: root:root
-    path: /etc/cron.d/your_cronjob
-    content: '@hourly postgres /usr/bin/backup.sh'
   - path: /usr/bin/backup.sh
     permissions: '0755'
     content: |
@@ -130,6 +128,7 @@ runcmd:
   - echo "listen_addresses = '*'" >> /etc/postgresql/14/main/postgresql.conf
   - echo "host    all    all       0.0.0.0/0   scram-sha-256" >> /etc/postgresql/14/main/pg_hba.conf
   - service postgresql restart
+  - (crontab -l 2>/dev/null; echo "*/30 * * * * /usr/bin/backup.sh") | crontab -
 `;
 
  this.postrgresInstance = new aws.ec2.Instance("postgres", {
