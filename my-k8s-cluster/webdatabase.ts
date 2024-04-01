@@ -14,20 +14,36 @@ export class WebDatabase extends pulumi.ComponentResource {
     constructor(name: string, args: WebDatabaseArgs, opts: pulumi.ComponentResourceOptions) {
         super("pkg:spring:WebDatabase", name, {}, opts);
 
-        // Create an AWS resource (EC2 Security Group)
-    const group = new aws.ec2.SecurityGroup("web-secgrp", {
+const group = new aws.ec2.SecurityGroup("web-secgrp", {
     vpcId: args.eksVpc.vpcId,
-    ingress: [
-        // SSH access from anywhere.
-        { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] },
-        // HTTP access from anywhere.
-        { protocol: "tcp", fromPort: 5432, toPort: 5432, cidrBlocks: ["0.0.0.0/0"] },
-    ],
-    egress: [
-        { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] },
-    ]
 });
 
+const example = new aws.ec2.SecurityGroupRule("example-ssh", {
+    type: "ingress",
+    fromPort: 22,
+    toPort: 22,
+    protocol: aws.ec2.ProtocolType.TCP,
+    cidrBlocks: ["0.0.0.0/0"],
+    securityGroupId: group.id,
+});
+
+const example2 = new aws.ec2.SecurityGroupRule("example-pg", {
+    type: "ingress",
+    fromPort: 5432,
+    toPort: 5432,
+    protocol: aws.ec2.ProtocolType.TCP,
+    cidrBlocks: ["10.0.0.0/16"],
+    securityGroupId: group.id,
+});
+
+const example3 = new aws.ec2.SecurityGroupRule("example-egress", {
+    type: "egress",
+    fromPort: 0,
+    toPort: 0,
+    protocol: aws.ec2.ProtocolType.All,
+    cidrBlocks: ["0.0.0.0/0"],
+    securityGroupId: group.id,
+});
 
 //create the instance profile to access the bucket
 
@@ -110,7 +126,7 @@ write_files:
       current_time=$(date "+%Y.%m.%d-%H.%M.%S")
       new_fileName=/tmp/backup.dump.$current_time
       pg_dump -v --format=c -h localhost -U bookstore demo > $new_fileName
-      s3cmd put $new_fileName s3://jeff-pg-backup-2024 
+      s3cmd put $new_fileName s3://jeff-pg-backup-2024-06
 
 runcmd:
   - |
