@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://184.72.66.232:5432/demo
+    username: bar2
+    password: bar2
+  jpa:
+    hibernate: 
+      ddl-auto: create
+    defer-datasource-initialization: true
+  application:
+    name: tanzu-java-web-app
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"  
+  endpoint:
+    health:
+      show-details: always
