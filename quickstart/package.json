@@ -9,7 +9,7 @@
         "@pulumi/aws": "^6.0.0",
         "@pulumi/awsx": "^2.0.2",
         "@pulumi/kubernetes": "^4.0.0",
-        "@pulumi/eks": "^v2.0.0"
+        "@pulumi/eks": "^3.8.0"
 
     }
 }
